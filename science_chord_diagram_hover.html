@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<!-- affinity group data, circle rotation, auto-resize svg image, chord function, configuration -->
+<title>Chord diagram with hover</title>
+<script src="http://d3js.org/d3.v3.min.js"></script>
+<style>
+#visual {
+    font: 20px sans-serif;
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+    /*width: 40%;*/
+}
+
+    /*h1{
+        color: #696969  ;
+    }
+
+    h2 {
+      color: #696969 ;
+    }
+*/
+.chord path {
+    fill-opacity: .67;
+    stroke: #000;
+    stroke-width: 0px;
+}
+
+@media only screen and (min-device-width: 320px) and (max-device-width: 568px) {
+    #visual {
+        -webkit-user-select: none;
+        font-size: 1.2em;
+    }
+}
+
+@media only screen and (min-device-width: 768px) and (max-device-width: 1024px) {
+    #visual { 
+        -webkit-user-select: none; 
+    }
+}
+</style>
+<body>
+<center>
+    <h1>Community Diffusion Relations</h1>
+    <h2><i>Strenght of Weak Ties<i>, Granovetter 1973</h2>
+<center>
+</body>
+
+<script>
+var visual = document.getElementById("visual");
+
+// matrix of ADB, EBRD, EIB, IDB, KFW, OPIC, World Bank
+var matrix = [[31758,  1633,   534,  1603,    89,   457,   561,   438,   123,
+          208,   574,   381],
+       [  993, 11963,   522,   120,   450,   223,   175,   127,   294,
+          167,    15,    65],
+       [  803,   758, 14205,    61,    29,   136,   243,   213,   109,
+          106,     5,    86],
+       [ 2926,   366,    52,  6842,    31,   165,    81,    28,     6,
+           29,   152,    36],
+       [  318,   602,   146,    36,  4755,   114,    78,     5,    35,
+           73,     4,    23],
+       [ 1125,   215,   292,   165,    48,  5721,   109,    16,    37,
+          104,    24,    37],
+       [  588,   343,   252,    81,    45,    80,  3116,    31,    24,
+           86,    38,    49],
+       [  838,   265,   454,    84,    10,    43,    54,  4439,   104,
+           66,     8,    60],
+       [  323,   634,   235,     8,    43,    33,    25,    59,  3588,
+           23,    13,    26],
+       [  443,   345,   391,    16,    88,    34,    54,    49,    16,
+         3266,    14,    25],
+       [  584,    85,    11,   161,    10,    34,    62,     9,     5,
+            4,  1650,    16],
+       [  631,   149,    48,    34,     7,    37,    23,    40,    21,
+           18,    12,  1549]];
+
+var array = [ 0,1,2,3,4,5,6,7,8,9,10,11];
+
+var rotation = .99;
+
+
+var chord_options = {
+    "gnames": array,
+    "rotation": rotation,
+    // Colors of bundles
+    "colors": ['#00CD00', '#FFFF00', '#FF7F00', '#b19cd9', '#4169E1', '#63B8FF', '#0000FF', '#FFDEAD', '#54FF9F', '#800080', '#008000', '#FFC0CB']
+};
+
+    function Chord(container, options, matrix) {
+
+        // initialize the chord configuration variables
+        var config = {
+            width: 800,
+            height: 800,
+            rotation: 0,
+            textgap: 10,
+            colors: ["#7fc97f", "#beaed4", "#fdc086", "#ffff99", "#386cb0", "#f0027f", "#bf5b17", "#666666", "#ffff99", "#386cb0", "#f0027f", "#bf5b17", "#666666"]
+        };
+        
+        // add options to the chord configuration object
+        if (options) {
+            extend(config, options);
+        }
+        
+        // set chord visualization variables from the configuration object
+        var offset = Math.PI * config.rotation,
+            width = config.width,
+            height = config.height,
+            textgap = config.textgap,
+            colors = config.colors;
+        
+        // set viewBox and aspect ratio to enable a resize of the visual dimensions 
+        var viewBoxDimensions = "0 0 " + width + " " + height,
+            aspect = width / height;
+        
+        if (config.gnames) {
+            gnames = config.gnames;
+        } else {
+            // make a list of names
+            gnames = [];
+            for (var i=97; i<matrix.length; i++) {
+                gnames.push(String.fromCharCode(i));
+            }
+        }
+
+        // start the d3 magic
+        var chord = d3.layout.chord()
+            .padding(.05)
+            .sortSubgroups(d3.descending)
+            .matrix(matrix);
+
+        var innerRadius = Math.min(width, height) * .31,
+            outerRadius = innerRadius * 1.1;
+
+        var fill = d3.scale.ordinal()
+            .domain(d3.range(matrix.length-1))
+            .range(colors);
+    
+        var svg = d3.select("body").append("svg")
+            .attr("id", "visual")
+            .attr("viewBox", viewBoxDimensions)
+            .attr("preserveAspectRatio", "xMinYMid")    // add viewBox and preserveAspectRatio
+            .attr("width", width)
+            .attr("height", height)
+          .append("g")
+            .attr("transform", "translate(" + width / 2 + "," + height / 2 + ")");
+
+        var g = svg.selectAll("g.group")
+            .data(chord.groups)
+          .enter().append("svg:g")
+            .attr("class", "group");
+
+        g.append("svg:path")
+            .style("fill", function(d) { return fill(d.index); })
+            .style("stroke", function(d) { return fill(d.index); })
+            .attr("id", function(d, i) { return "group" + d.index; })
+            .attr("d", d3.svg.arc().innerRadius(innerRadius).outerRadius(outerRadius).startAngle(startAngle).endAngle(endAngle))
+            .on("mouseover", fade(.1))
+            .on("mouseout", fade(1));
+
+        g.append("svg:text")
+            .each(function(d) {d.angle = ((d.startAngle + d.endAngle) / 2) + offset; })
+            .attr("dy", ".35em")
+            .attr("text-anchor", function(d) { return d.angle > Math.PI ? "end" : null; })
+            .attr("transform", function(d) {
+                return "rotate(" + (d.angle * 180 / Math.PI - 90) + ")"
+                    + "translate(" + (outerRadius + textgap) + ")"
+                    + (d.angle > Math.PI ? "rotate(180)" : "");
+              })
+            .text(function(d) { return gnames[d.index]; });
+
+        svg.append("g")
+            .attr("class", "chord")
+          .selectAll("path")
+            .data(chord.chords)
+          .enter().append("path")
+            .attr("d", d3.svg.chord().radius(innerRadius).startAngle(startAngle).endAngle(endAngle))
+            .style("fill", function(d) { return fill(d.source.index); })
+            .style("opacity", 1)
+          .append("svg:title")
+            .text(function(d) { 
+                return  d.source.value + "  " + gnames[d.source.index] + " shared with " + gnames[d.target.index]; 
+            });
+    
+        // helper functions start here
+        
+        function startAngle(d) {
+            return d.startAngle + offset;
+        }
+
+        function endAngle(d) {
+            return d.endAngle + offset;
+        }
+        
+        function extend(a, b) {
+            for( var i in b ) {
+                a[ i ] = b[ i ];
+            }
+        }
+
+        // Returns an event handler for fading a given chord group.
+        function fade(opacity) {
+            return function(g, i) {
+                svg.selectAll(".chord path")
+                    .filter(function(d) { return d.source.index != i && d.target.index != i; })
+                    .transition()
+                    .style("opacity", opacity);
+            };
+        }
+        
+        
+        window.onresize = function() {
+            var targetWidth = (window.innerWidth < width)? window.innerWidth : width;
+            
+            var svg = d3.select("#visual")
+                .attr("width", targetWidth)
+                .attr("height", targetWidth / aspect);
+        }
+
+        
+    }
+
+window.onload = function() {
+    Chord(visual, chord_options, matrix);
+}
+
+d3.select(self.frameElement).style("height", "100px");
+</script>
+</html>
